@@ -1,12 +1,16 @@
 import { createAcrossClient } from "@across-protocol/app-sdk";
 import dotenv from "dotenv";
-import { type Address, parseUnits } from "viem";
+import { type Address, parseUnits, formatUnits } from "viem";
 import { mainnet, arbitrum } from "viem/chains";
 import {
   generateApproveCallData,
   generateExchangeCallData,
 } from "./utils/transactions.js";
-import { createUserWallet, createTransactionUrl } from "./utils/helpers.js";
+import {
+  createUserWallet,
+  createTransactionUrl,
+  getBalance,
+} from "./utils/helpers.js";
 import { logger } from "./utils/logger.js";
 import { type CrossChainMessage } from "./utils/types.js";
 
@@ -25,7 +29,7 @@ const route = {
 
 // Input amount to be used for bridge transaction
 // Amount scaled to inputToken decimals (6 decimals for USDC)
-const inputAmount = parseUnits("30", 6);
+const inputAmount = parseUnits("100", 6);
 
 // Curve parameters for the quote and swap
 const curveParams = {
@@ -47,6 +51,19 @@ async function executeSwap() {
       process.env.PRIVATE_KEY,
       process.env.RPC_URL,
       arbitrum
+    );
+
+    const balance = await getBalance(arbitrum, userAddress, route.inputToken);
+    if (balance < inputAmount) {
+      throw new Error(
+        `Insufficient balance. Required: ${formatUnits(
+          inputAmount,
+          6
+        )}, Available: ${formatUnits(balance, 6)}`
+      );
+    }
+    logger.success(
+      `Balance check passed. Available: ${formatUnits(balance, 6)}`
     );
 
     // sets up the AcrossClient and configures chains
